@@ -107,7 +107,7 @@ class DocumentChunkingWorkflow(Workflow):
 async def main():
     # Initialize LLM
     llm = create_chat_model(
-        model=os.getenv("MODEL", "kimi-k2-250905"),
+        model=os.getenv("MODEL", "gpt-4o-mini"),
         api_key=os.getenv("OPENAI_API_KEY"),
         api_base=os.getenv("OPENAI_BASE_URL"),
     )
