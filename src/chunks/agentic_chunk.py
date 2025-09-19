@@ -24,12 +24,12 @@ class DocumentChunkingWorkflow(Workflow):
 
     @step
     async def input_node(self, ev: StartEvent) -> DocumentEvent:
-        """输入节点：接收原始文本并创建Document对象"""
+        """Input node: receives raw text and creates a Document object"""
         return DocumentEvent(document=Document(text=ev.input_text))
 
     @step
     async def sentence_splitting_node(self, ev: DocumentEvent) -> SentenceEvent:
-        """句子分割节点：将文档分割成单个句子"""
+        """Sentence splitting node: split the document into individual sentences"""
         # sentence_nodes = self.sentence_parser.get_nodes_from_documents([ev.document])
         # sentences = [node.text for node in sentence_nodes]
         sentences = re.split(r"(?<=[.。?!])\s+", ev.document.text)
@@ -39,7 +39,7 @@ class DocumentChunkingWorkflow(Workflow):
 
     @step
     async def llm_decision_node(self, ev: SentenceEvent) -> LLMDecisionEvent:
-        """LLM决策节点：决定如何将句子分组"""
+        """LLM Decision Node: Decide how to group sentences"""
         sentences = ev.sentences
         if not sentences:
             return LLMDecisionEvent(sentence_groups=[])
@@ -53,7 +53,7 @@ class DocumentChunkingWorkflow(Workflow):
             current_chunk = re.sub(r"\s+", " ", current_chunk).strip()
             next_sentence_clean = re.sub(r"\s+", " ", next_sentence).strip()
 
-            # 使用LLM做出决策
+            # Use LLM to make a decision
             prompt = f"""
             Consider the following text chunk and next sentence:
             Current chunk: '{current_chunk}'
@@ -91,7 +91,7 @@ class DocumentChunkingWorkflow(Workflow):
 
     @step
     async def chunking_node(self, ev: LLMDecisionEvent) -> StopEvent:
-        """分块节点：组织最终的分块结果"""
+        """Chunking node: organize the final chunking results"""
         return StopEvent(
             result=[
                 {
@@ -105,22 +105,22 @@ class DocumentChunkingWorkflow(Workflow):
 
 
 async def main():
-    # 初始化LLM
+    # Initialize LLM
     llm = create_chat_model(
         model=os.getenv("MODEL", "kimi-k2-250905"),
         api_key=os.getenv("OPENAI_API_KEY"),
         api_base=os.getenv("OPENAI_BASE_URL"),
     )
 
-    # 示例文档文本
+    # Example document text
     with open(os.path.join(PROJECT_ROOT, "data", "chunk_demo.txt"), "r") as f:
         document_text = f.read()
 
-    # 创建并运行工作流
+    # Create and run the workflow
     w = DocumentChunkingWorkflow(llm)
     result = await w.run(input_text=document_text)
 
-    # 打印结果
+    # Print results
     for chunk in result:
         print(f"Chunk ID: {chunk['chunk_id']}")
         print(f"Content: {chunk['chunk']}")
