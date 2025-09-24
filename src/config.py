@@ -1,7 +1,7 @@
-import os
 import logging
-from dotenv import load_dotenv
+import os
 
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -15,7 +15,6 @@ def get_logger(name, level=logging.INFO):
     if logger.hasHandlers():
         logger.handlers.clear()
 
-    # 添加 StreamHandler 并设置日志格式
     handler = logging.StreamHandler()
     formatter = logging.Formatter(
         fmt="%(levelname)s:\t%(asctime)s - %(name)s - %(message)s",
