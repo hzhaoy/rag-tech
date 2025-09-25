@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from typing import Dict, Optional
 
 from llama_index.core import Document
+from llama_index.core.base.embeddings.base import BaseEmbedding
+from llama_index.core.base.llms.base import BaseLLM
 from llama_index.core.base.llms.types import ChatMessage, MessageRole, TextBlock
 from llama_index.core.node_parser import (
     SemanticSplitterNodeParser,
@@ -10,11 +12,10 @@ from llama_index.core.node_parser import (
     TokenTextSplitter,
 )
 from llama_index.core.workflow import StartEvent, StopEvent, Workflow, step
-from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.llms.openai import OpenAI
 
 from src.config import PROJECT_ROOT, get_logger
 from src.models.chat_models import create_chat_model
+from src.models.embedding_models import create_embedding_model
 
 from .types import DocumentEvent, SemanticChunkEvent
 
@@ -30,10 +31,7 @@ class SemanticChunkConfig:
     max_chunk_size: int = 500
     min_chunk_size: int = 100
     chunk_overlap: int = 50
-    embedding_model: str = os.getenv(
-        "EMBEDDING_MODEL", "doubao-embedding-large-text-250515"
-    )
-    similarity_threshold: float = 0.7
+    embedding_model: str = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 
 
 class SemanticChunkingWorkflow(Workflow):
@@ -49,8 +47,8 @@ class SemanticChunkingWorkflow(Workflow):
 
     def __init__(
         self,
-        llm: OpenAI,
-        embed_model: OpenAIEmbedding,
+        llm: BaseLLM,
+        embed_model: BaseEmbedding,
         config: Optional[SemanticChunkConfig] = None,
     ):
         super().__init__()
@@ -301,10 +299,10 @@ async def main():
         api_key=os.getenv("OPENAI_API_KEY"),
         api_base=os.getenv("OPENAI_BASE_URL"),
     )
-    embedding_model = os.getenv("EMBEDDING_MODEL", "doubao-embedding-large-text-250515")
+    embedding_model = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 
-    embed_model = OpenAIEmbedding(
-        model_name=embedding_model,
+    embed_model = create_embedding_model(
+        model=embedding_model,
         api_key=api_key,
         api_base=api_base,
     )

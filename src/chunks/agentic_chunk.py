@@ -1,26 +1,39 @@
 import os
 import re
+from dataclasses import dataclass
+from typing import Optional
 
 from llama_index.core import Document
-from llama_index.core.node_parser import SentenceSplitter
-from llama_index.core.workflow import Workflow, StartEvent, StopEvent, step
-from llama_index.llms.openai_like import OpenAILike
+from llama_index.core.base.llms.base import BaseLLM
 from llama_index.core.base.llms.types import ChatMessage, MessageRole, TextBlock
+from llama_index.core.node_parser import SentenceSplitter
+from llama_index.core.workflow import StartEvent, StopEvent, Workflow, step
 
-from src.config import get_logger, PROJECT_ROOT
+from src.config import PROJECT_ROOT, get_logger
 from src.models.chat_models import create_chat_model
 
-from .types import DocumentEvent, SentenceEvent, LLMDecisionEvent
-
+from .types import DocumentEvent, LLMDecisionEvent, SentenceEvent
 
 logger = get_logger(__name__)
 
 
-class DocumentChunkingWorkflow(Workflow):
-    def __init__(self, llm):
+@dataclass
+class AgenticChunkConfig:
+    """Configuration for agentic chunking parameters"""
+
+    max_chunk_size: int = 200
+    chunk_overlap: int = 0
+
+
+class AgenticChunkingWorkflow(Workflow):
+    def __init__(self, llm, config: Optional[AgenticChunkConfig] = None):
         super().__init__()
-        self.llm: OpenAILike = llm
-        self.sentence_parser = SentenceSplitter(chunk_size=100, chunk_overlap=0)
+        self.llm: BaseLLM = llm
+        self.config = config or AgenticChunkConfig()
+        self.sentence_splitter = SentenceSplitter(
+            chunk_size=self.config.max_chunk_size,
+            chunk_overlap=self.config.chunk_overlap,
+        )
 
     @step
     async def input_node(self, ev: StartEvent) -> DocumentEvent:
@@ -30,10 +43,8 @@ class DocumentChunkingWorkflow(Workflow):
     @step
     async def sentence_splitting_node(self, ev: DocumentEvent) -> SentenceEvent:
         """Sentence splitting node: split the document into individual sentences"""
-        # sentence_nodes = self.sentence_parser.get_nodes_from_documents([ev.document])
-        # sentences = [node.text for node in sentence_nodes]
-        sentences = re.split(r"(?<=[.。?!])\s+", ev.document.text)
-        sentences = [x.strip() for i, x in enumerate(sentences) if x]
+        sentence_nodes = self.sentence_splitter.get_nodes_from_documents([ev.document])
+        sentences = [node.text for node in sentence_nodes]
         logger.info(f"sentence_splitting_node len(sentences): {len(sentences)}")
         return SentenceEvent(sentences=sentences)
 
@@ -48,7 +59,7 @@ class DocumentChunkingWorkflow(Workflow):
         current_group = [sentences[0]]
 
         for next_sentence in sentences[1:]:
-            # 清理句子文本
+            # Clean up sentence text
             current_chunk = " ".join(current_group)
             current_chunk = re.sub(r"\s+", " ", current_chunk).strip()
             next_sentence_clean = re.sub(r"\s+", " ", next_sentence).strip()
@@ -117,7 +128,7 @@ async def main():
         document_text = f.read()
 
     # Create and run the workflow
-    w = DocumentChunkingWorkflow(llm)
+    w = AgenticChunkingWorkflow(llm)
     result = await w.run(input_text=document_text)
 
     # Print results

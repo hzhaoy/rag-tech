@@ -1,4 +1,5 @@
 from typing import Optional
+
 from llama_index.llms.openai import OpenAI
 
 
