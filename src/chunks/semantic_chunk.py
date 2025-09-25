@@ -94,7 +94,9 @@ class SemanticChunkingWorkflow(Workflow):
 
         try:
             # First attempt: semantic splitting
-            semantic_nodes = self.semantic_splitter.get_nodes_from_documents([document])
+            semantic_nodes = await self.semantic_splitter.aget_nodes_from_documents(
+                [document]
+            )
 
             # Validate chunk sizes and apply constraints
             valid_chunks = []
@@ -118,7 +120,7 @@ class SemanticChunkingWorkflow(Workflow):
 
             # Handle oversized chunks with sentence splitting
             for oversized_node in oversized_chunks:
-                sentence_nodes = self.sentence_splitter.get_nodes_from_documents(
+                sentence_nodes = await self.sentence_splitter.aget_nodes_from_documents(
                     [
                         Document(
                             text=oversized_node.text, metadata=oversized_node.metadata
@@ -132,7 +134,7 @@ class SemanticChunkingWorkflow(Workflow):
                 logger.warning(
                     "No valid semantic chunks produced, falling back to sentence splitting"
                 )
-                valid_chunks = self.sentence_splitter.get_nodes_from_documents(
+                valid_chunks = await self.sentence_splitter.aget_nodes_from_documents(
                     [document]
                 )
 
@@ -168,7 +170,9 @@ class SemanticChunkingWorkflow(Workflow):
             logger.info("Falling back to sentence splitting")
 
             # Fallback to sentence splitting
-            sentence_nodes = self.sentence_splitter.get_nodes_from_documents([document])
+            sentence_nodes = await self.sentence_splitter.aget_nodes_from_documents(
+                [document]
+            )
 
             for i, chunk in enumerate(sentence_nodes):
                 chunk.metadata.update(
@@ -234,8 +238,8 @@ class AdvancedSemanticChunker:
 
     def __init__(
         self,
-        llm: OpenAI,
-        embed_model: OpenAIEmbedding,
+        llm: BaseLLM,
+        embed_model: BaseEmbedding,
         config: Optional[SemanticChunkConfig] = None,
     ):
         self.llm = llm
