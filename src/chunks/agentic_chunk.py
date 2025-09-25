@@ -21,8 +21,9 @@ logger = get_logger(__name__)
 class AgenticChunkConfig:
     """Configuration for agentic chunking parameters"""
 
-    max_chunk_size: int = 200
-    chunk_overlap: int = 0
+    max_chunk_size: int = 500
+    sentence_split_size: int = 50
+    sentence_split_overlap: int = 0
 
 
 class AgenticChunkingWorkflow(Workflow):
@@ -31,8 +32,8 @@ class AgenticChunkingWorkflow(Workflow):
         self.llm: BaseLLM = llm
         self.config = config or AgenticChunkConfig()
         self.sentence_splitter = SentenceSplitter(
-            chunk_size=self.config.max_chunk_size,
-            chunk_overlap=self.config.chunk_overlap,
+            chunk_size=self.config.sentence_split_size,
+            chunk_overlap=self.config.sentence_split_overlap,
         )
 
     @step
@@ -43,7 +44,9 @@ class AgenticChunkingWorkflow(Workflow):
     @step
     async def sentence_splitting_node(self, ev: DocumentEvent) -> SentenceEvent:
         """Sentence splitting node: split the document into individual sentences"""
-        sentence_nodes = self.sentence_splitter.get_nodes_from_documents([ev.document])
+        sentence_nodes = await self.sentence_splitter.aget_nodes_from_documents(
+            [ev.document]
+        )
         sentences = [node.text for node in sentence_nodes]
         logger.info(f"sentence_splitting_node len(sentences): {len(sentences)}")
         return SentenceEvent(sentences=sentences)
@@ -74,7 +77,7 @@ class AgenticChunkingWorkflow(Workflow):
             Answer with 'yes' or 'no' only.
             """
 
-            response = self.llm.chat(
+            response = await self.llm.achat(
                 messages=[
                     ChatMessage(role=MessageRole.USER, blocks=[TextBlock(text=prompt)]),
                 ],
@@ -84,7 +87,8 @@ class AgenticChunkingWorkflow(Workflow):
             if (
                 decision is not None
                 and decision.startswith("yes")
-                and sum(len(s) for s in current_group) + len(next_sentence_clean) <= 500
+                and sum(len(s) for s in current_group) + len(next_sentence_clean)
+                <= self.config.max_chunk_size
             ):
                 logger.info(
                     f"Appending to current group: {next_sentence_clean[:30]}..."
