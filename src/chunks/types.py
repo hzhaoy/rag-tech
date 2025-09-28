@@ -17,8 +17,20 @@ class LLMDecisionEvent(Event):
     sentence_groups: List[List[str]]
 
 
-class SemanticChunkEvent(Event):
-    """Event for semantic chunks"""
+class ChunkEvent(Event):
+    """Event for generic chunks"""
 
     chunks: List[TextNode]
     metadata: dict
+
+
+class SemanticChunkEvent(ChunkEvent):
+    """Event for semantic chunks"""
+
+    pass
+
+
+class ContextualChunkEvent(ChunkEvent):
+    """Event for contextual chunks"""
+
+    pass
